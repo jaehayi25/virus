@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+canvas {
+	border:1px solid #d4d4d4;
+	background-color: #f1f1f1;
+}
+</style>
+</head>
+
+<body onload="startGame()">
+
+<script>
+var gInterval = 20;
+var gObjNum = 500;
+var gSize = 440;
+var gCOR = 1;
+var gSpeedMax = 0.25;
+var gRadius = 4;
+var gMoveNum = 500;
+var gVirusLast = 700;
+
+var myObjects = [];
+var myContext;
+var counter=[gObjNum,0,0];
+
+//create queue of viruses
+var viruses = [];
+var timeCounter = 0;
+var airborneTime = 396;
+var virusDur = [396, 392, 412, 360, 344, 376, 408, 396, 396, 448, 440, 392];
+var virusIdx = 0;
+var vRadius = 2;
+
+var numImmune = 10;
+
+var colorHealthy="rgba(150, 230, 220, 1)";
+var colorSick="rgba(255, 0, 0, 1)";
+var colorVirus="rgba(200, 0, 130, 1)";
+var colorRecovered="rgba(255, 100, 100, .4)";
+
+var myGameArea = {
+    canvas : document.createElement("canvas"),
+    start : function() {
+        this.canvas.width = gSize;
+        this.canvas.height = gSize;
+        myContext = this.canvas.getContext("2d");
+        document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+        this.frameNo=0;
+        
+        clearInterval(this.interval);
+        this.interval = setInterval(updateGame, gInterval); //Every 20ms call updateGame
+         //document.addEventListerner('keydown', keyDownHandler,false);
+        //document.addEventListerner('keyup', keyUpHandler, false);
+    },
+    clear : function() {
+        myContext.clearRect(0,0,this.canvas.width, this.canvas.height);
+    }
+}
+
+function circle(x,y,r, t=0) {
+    // '#FD0'; '#6C0'; '#09F'; '#F30';
+  
+    //if(t==0) myContext.fillStyle="rgba(100, 100, 150, 1)"
+    //else if(t==1) myContext.fillStyle="#CC0"
+    //else myContext.fillStyle="pink"
+    
+    if(t==0) myContext.fillStyle=colorHealthy;
+    else if(t==1) myContext.fillStyle=colorSick;
+    else if (t==4) myContext.fillStyle=colorVirus;
+    else myContext.fillStyle=colorRecovered;
+    
+    myContext.beginPath();
+    myContext.arc(x, y, r, 0, 2 * Math.PI);
+    myContext.closePath();
+    myContext.fill();
+}
+
+function object(type, x, y, vx, vy, r, ax=0, ay=0) {
+    this.type = type;
+    this.x = x;
+    this.y = y;
+    this.vx = vx;
+    this.vy = vy;
+    this.ax = ax;
+    this.ay = ay;
+    this.move = true;
+    this.vCount=0;
+    
+    this.update = function() {
+        if(this.type==1) {
+            if (this.vCount % 100 == 0) { //CREATE VIRUS
+                viruses.push(new object(4,myObjects[i].x,myObjects[i].y,0,0,vRadius));
+			}
+            if(this.vCount==gVirusLast){
+                this.type=2;
+                counter[2]+=1; //Add recovered
+                counter[1]-=1; //Decrease infected
+            }
+            else this.vCount+=1;
+        }
+        if (this.type==4) { //increment virus time
+            this.vCount+=1;
+		}
+        
+        if(this.move==false) {
+            this.x +=Math.random()-.5;
+            this.y +=Math.random()-.5;
+            if(this.x<0) this.x=0;
+            if(this.y<0) this.y=0;
+            if(this.x>gSize) this.x=gSize;
+            if(this.y>gSize) this.y=gSize;
+        }
+        else { // move
+            if(this.x < 0) { this.x*=-1; this.vx *=-gCOR; this.vy *= gCOR; }
+            if(this.y < 0) { this.y*=-1; this.vx *= gCOR; this.vy *=-gCOR; }
+            if(this.x > gSize) { this.x=2*gSize-this.x; this.vx *=-gCOR; this.vy *= gCOR; }
+            if(this.y > gSize) { this.y=2*gSize-this.y; this.vx *= gCOR; this.vy *=-gCOR; }
+            
+            //this.vx += this.ax; this.ax=0;
+            //this.vy += this.ay; this.ay=0;
+            
+            this.x += this.vx;
+            this.y += this.vy;
+        }
+    }
+    
+    this.draw = function() {
+        circle(this.x, this.y, r, this.type);
+    }
+}
+
+function startGame() {
+	myObjects=[];
+	myGameArea.start();
+    for (i = 0; i < gObjNum; i += 1) {
+        x=Math.random()*gSize;
+        y=Math.random()*gSize;
+        vx=(Math.random()-.5)*2;
+        vy=0;
+        if (Math.floor(Math.random() * 2) == 0) {
+            vy=Math.sqrt(1-vx*vx);
+		}
+        else {
+            vy=-Math.sqrt(1-vx*vx);
+		}
+        vx *= gSpeedMax;
+        vy *= gSpeedMax;
+        type=0; //=Math.floor(Math.random() * 3); 
+        myObjects.push(new object(type, x, y, vx, vy, gRadius));
+    }
+    for (i = gMoveNum; i < gObjNum; i += 1) {
+        myObjects[i].move=false;
+    }
+    for(i=0;i<numImmune;i+=1){
+        myObjects[i].type=2;
+        counter[0]--;
+        counter[2]++;
+    }
+    
+    console.log("start!");
+}
+
+function restart() {
+    for(i=0;i<gObjNum;i+=1){
+        myObjects[i].type=0;
+        myObjects[i].vCount=0;
+    }
+    counter[0]=gObjNum;
+    counter[1]=0;
+    counter[2]=0;
+    timeCounter=0;
+    viruses=[];
+    virusIdx=0;
+    for(i=0;i<numImmune;i+=1){
+        myObjects[i].type=2;
+        counter[0]--;
+        counter[2]++;
+    }
+}
+
+function infect() {
+    n=Math.floor(Math.random() * gObjNum)
+    while(myObjects[n].type!=0) {
+        n=Math.floor(Math.random() * gObjNum)
+	}
+    if(myObjects[n].type==0){
+        myObjects[n].type=1;
+        counter[0]-=1;
+        counter[1]+=1;
+    }
+}
+
+function movePlus(n) {
+    for(i=0;i<n;i+=1) {
+        if(gMoveNum<gObjNum){
+            myObjects[gMoveNum].move=true;
+            gMoveNum+=1;
+        }
+    }
+}
+
+function moveMinus(n) {
+    for(i=0;i<n;i+=1) {
+        if(gMoveNum>0){
+            myObjects[gMoveNum-1].move=false;
+            gMoveNum-=1;
+        }
+    }
+}
+
+var newCases = 0;
+
+function updateGame() {
+    myGameArea.clear();
+    timeCounter++;
+    if (timeCounter % 500 == 0) {
+        //console.log("Duration: "+airborneTime);
+        console.log(timeCounter/500+" "+airborneTime+": "+counter[1]+" "+counter[2]+" New Cases: "+(counter[1]+counter[2]-newCases));
+        if (virusIdx < virusDur.length) {
+            virusIdx++;
+            airborneTime = virusDur[virusIdx];
+        }
+        newCases = counter[1]+counter[2];
+	}
+
+    for(i=0; i<gObjNum-1; i+=1) {
+        for(j=i+1; j<gObjNum; j+=1) {
+            dx=(myObjects[i].x-myObjects[j].x);
+            dy=(myObjects[i].y-myObjects[j].y);
+            if(dx*dx+dy*dy < 4*gRadius*gRadius){
+                if(myObjects[i].type==1 && myObjects[j].type==0){
+                    myObjects[j].type=1;
+                    counter[0]-=1;
+                    counter[1]+=1;
+                }
+                else if(myObjects[i].type==0 && myObjects[j].type==1){
+                    myObjects[i].type=1;
+                    counter[0]-=1;
+                    counter[1]+=1;
+                }
+            }
+        }
+    }
+
+    
+    for(i=0; i<gObjNum; i+=1) {
+        myObjects[i].update();
+        myObjects[i].draw();
+        //Previous virus creation
+        //if (timeCounter % 100 == 0 && myObjects[i].type == 1) viruses.push(new object(4,myObjects[i].x,myObjects[i].y,0,0,vRadius));
+        //circle(myObjects[i].x, myObjects[i].y, 2, 1);
+    }
+
+    while (viruses.length > 0 && viruses[0].vCount >= airborneTime) {
+        viruses.shift();
+	}
+
+    for (var virus of viruses) {
+        virus.update();
+        virus.draw();
+	}
+
+    //collision between virus particle and people
+    for (var ppl of myObjects) {
+        for (var virus of viruses) {
+            dx=(ppl.x-virus.x);
+            dy=(ppl.y-virus.y);
+            dr = vRadius + gRadius;
+            if (ppl.type==0 && dx*dx + dy*dy < dr*dr) {
+                ppl.type=1;
+                counter[0]-=1;
+                counter[1]+=1;
+			}
+        }
+    }
+    
+    myContext.fillStyle = "white";
+	myContext.fillRect(10, 10, 240, 100);
+	
+    myContext.font = "32px Arial";
+    myContext.fillStyle = colorHealthy;
+    score="healthy: "+counter[0].toString();
+    myContext.fillText(score, 20, 40);
+    
+    myContext.fillStyle = colorSick;
+    score="sick: "+counter[1].toString();
+    myContext.fillText(score, 20, 70);
+    
+    myContext.fillStyle = colorRecovered;
+    score="recovered: "+counter[2].toString();
+    myContext.fillText(score, 20, 100);
+    
+    //myContext.fillStyle = "gray";
+    //score="moving: "+gMoveNum.toString();
+    //myContext.fillText(score, 20, 100);
+    
+    //console.log( (myObjects[0].vx/ myObjects[0].vy), 
+    //            myObjects[0].vx, myObjects[0].vy);
+}
+
+</script>
+<br>
+<button onmouseup="moveMinus(100)">move -100</button>
+<button onmouseup="moveMinus(20)">move -20</button>
+<button onmouseup="movePlus(10)">move +10</button>
+<button onmouseup="movePlus(100)">move +100</button>
+<button onmouseup="restart()">reset</button>
+<button onmouseup="infect()">infect +1</button>
+</body>
+</html>
